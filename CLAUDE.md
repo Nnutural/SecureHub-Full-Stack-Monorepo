@@ -25,13 +25,23 @@ Same code, two stories. The `/course` module is the A3 showcase; the other 9 mod
 1. **The 9 agents are fixed** — never add a 10th, never rename, never drop.
    `policy_interpreter` · `hot_analyst` · `job_analyst` · `competition_advisor` · `career_planner` · `topic_explorer` · `doc_archivist` · `task_orchestrator` · `outcome_evaluator`
    New A3 capabilities arrive as **new skills under existing agents**, not as new agents.
-2. **Cross-cutting infra is not an agent.** `rag/`, `knowledge/loaders/`, `runtime/router.py`, `runtime/guardrails/` are middleware. Do not list them as agents.
-3. **One unified knowledge asset layer for every domain.** All domains share `documents` + `document_assets` + `chunks` + `knowledge_nodes` + `knowledge_edges`, filtered by `domain`. Never create `course_chunks`, `fund_chunks`, `policy_chunks`, etc. Files (PDF / Markdown / cover / page image / OCR / generated PPT / audio / video) live behind `storage_objects.object_key`; the DB stores only metadata + hash + MIME + size + status.
+2. **Cross-cutting infra is not an agent.** `rag/`, `knowledge/loaders/`, `services/knowledge/crawling/`, `services/storage/`, `runtime/router.py`, `runtime/guardrails/`, `runtime/harness/` are middleware. Do not register them — or external tools like **Scrapling / MediaCrawler / MindSpider** — as a 10th agent (no `crawler_agent` / `media_agent` / `spider_agent`).
+3. **One unified knowledge asset layer (data-layer v2) for every domain.** All domains share `documents` + `document_assets` + `chunks` + `knowledge_nodes` + `knowledge_edges`, filtered by `domain`. Never create `course_chunks` / `fund_chunks` / `policy_chunks` / `bilibili_chunks` / `zhihu_chunks` / platform_chunks parallel tables. Source assets (PDF · Markdown full/chapter · cover · page image · OCR text · video transcript) live in `document_assets` keyed by `object_key` against `storage_objects`. All **generated** resources (course doc · PPT · mindmap · quiz set · lab · video storyboard · reading list · assessment report) land in `generated_resources` + `storage_objects` — never in `documents`.
 4. **Learner profile has one source of truth plus evaluable capability rows.** `user_profiles` stores the merged persona (JSONB `dimensions` + embedding); `user_capabilities` stores radar-chart dimensions and assessment-updatable scores. Feature modules must not create their own profile tables; updates flow through `outcome_evaluator.update_capability` → `user_capabilities` → `career_planner.update_persona` → `user_profiles`.
-5. **Every new endpoint / service / repository file starts with a status comment**: `# Status: real` | `# Status: mock` | `# Status: partial-real`. No exceptions.
-6. **Generative skills must call `rag.retrieve()` before composing the prompt.** Bypassing RAG to call the LLM directly is forbidden — it kills the anti-hallucination story.
+5. **Every new endpoint / service / repository file starts with a status comment**: `# Status: real` | `# Status: mock` | `# Status: partial-real` | `# Status: planned`. No exceptions.
+6. **Generative skills must call `rag.retrieve()` before composing the prompt, then pass through `outcome_evaluator.quality_check`.** The Harness contract is: `validate input → rag.retrieve → evidence_floor check → LLM → parse → quality_check → write generated_resources/storage_objects → log_run`. Bypassing RAG or the quality gate kills the anti-hallucination story.
 7. **Every skill ends with `await ctx.log_run(...)`** writing to `agent_runs`. The trace visualization depends on it. CI greps for this.
-8. **Changes that touch §3 rules, §9 schema, or §19 deltas in `.codex/AGENTS.md` must update `.codex/AGENTS.md` in the same change.** Code and constitution stay in sync.
+8. **Changes that touch §2 rules, §8 schema, collection strategy, the Harness contract, or §19 deltas in `.codex/AGENTS.md` must update both `CLAUDE.md` and `.codex/AGENTS.md` in the same change.** Code and constitution stay in sync.
+
+### 2.1 Multi-source collection — compliance is non-negotiable
+
+Three external tools, one normalization pipe — none is an agent.
+
+- **Scrapling** (P0/P1): generic public web — OWASP, PortSwigger, GitHub README/Docs, official docs, technical blogs.
+- **MediaCrawler** (P1, same tier as Scrapling): Chinese social platforms — 小红书 / 抖音 / 快手 / B站 / 微博 / 贴吧 / 知乎.
+- **MindSpider** (P2 reference only): hot-topic discovery and sentiment flow as inspiration for `hot_analyst` demos. Not in P0 main path; **never** import its platform-specific DB schema.
+
+All three feed `source_normalizer` → `storage_objects` → `documents` + `document_assets` → `chunks` → `knowledge_nodes/edges`. Every row must carry `platform / source_url / author / published_at / fetched_at / license / rights_note`. Hard bans (CI/PR review): no login bypass, no CAPTCHA bypass, no anti-bot/Cloudflare bypass, no proxy rotation for evasion, no large-scale concurrent scraping, no bulk re-hosting of copyrighted content.
 
 ---
 
@@ -45,7 +55,7 @@ Same code, two stories. The `/course` module is the A3 showcase; the other 9 mod
 | LLM | **iFLYTEK Spark (讯飞星火) — A3 hard requirement** · DeepSeek / Qwen as fallback |
 | Embedding | BGE-M3 / bge-large-zh / Spark embedding |
 | Agent runtime | **LangGraph** (`StateGraph` + conditional edges) |
-| Streaming | SSE — 5 event types: `token` / `evidence` / `progress` / `done` / `error` |
+| Streaming | SSE — 7 event types: `progress` / `evidence` / `token` / `artifact` / `trace` / `done` / `error` |
 | State mgmt (FE) | `useReducer` + `localStorage` per feature. **No Redux / Zustand.** |
 | Path alias | `@/*` → `src/*`; custom `figma:asset/` Vite resolver |
 
@@ -58,26 +68,31 @@ Do **not** introduce: Milvus, Neo4j, MongoDB, Doris, Elasticsearch, MUI, Redux. 
 ```
 backend/app/
   agents/          # 9 agent folders, each = agent.py + skills/*.py + tools.py
-  runtime/         # router, capability_manifest, logger, guardrails/, graphs/
+  runtime/         # router, capability_manifest, logger, guardrails/, graphs/, harness/ (skill executor)
   llm/             # xfyun.py · deepseek.py · embedding.py
   rag/             # chunker · retriever (BM25 + vector + RRF) · reranker · evidence_builder
-  knowledge/       # loaders/ for each domain
+  knowledge/loaders/   # per-domain loaders: course / policy / fund / pdf (MinerU) / generic_web / owasp / portswigger / media_platform ...
+  services/
+    knowledge/crawling/  # scrapling_client · mediacrawler_adapter · mindspider_adapter · source_normalizer · crawler_policy
+    storage/             # storage_objects writer (local / minio / s3 abstraction)
+    {agent,resources,knowledge,learning}/  # business orchestration; status: real|mock|partial-real|planned
   db/              # models/ grouped by {identity,knowledge,learning,agent,resource,storage}/ + migrations/ + seeds/
   repositories/    # grouped by {identity,knowledge,learning,agent,resource,storage}/  — DB read/write only
-  services/        # grouped by {knowledge,learning,agent,resource,storage}/  — business orchestration
-  streaming/       # SSE events + writer
+  streaming/       # SSE events + writer (progress / evidence / token / artifact / trace / done / error)
   api/v1/endpoints/  # FastAPI routes
 frontend/src/app/
   pages/           # 10 top-level routes (CourseStudy is the 10th)
-  features/        # course/ · profile/ · chat/ · research/ ... each self-contained
-  components/      # Layout, EvidenceDrawer, etc.
+  features/        # course/ · profile/ · chat/ · agents/ · sources/ · research/ ... each self-contained
+  components/      # Layout, EvidenceDrawer, CitationPanel, AgentTracePanel, SourceBadge ...
   lib/             # api.ts · sse.ts
 .codex/
   AGENTS.md        # ← full constitution (everything in detail). Read on first session.
   context/         # Codex-specific session context
   workflows/       # Codex playbooks
-../CompetitionTheme/A3赛题规划.md   # A3 task spec + capability→agent→skill mapping
-../Workout/                          # Long-form planning artefacts (FRAMEWORK_COMPLETION_PLAN, etc.)
+../CompetitionTheme/A3赛题规划.md      # A3 task spec + capability→agent→skill mapping
+../Chat/SecureHub_Data_Layer_V2_工程化改造任务书.md  # data-layer v2 source of truth
+../Plan/SecureHub_三人并行开发分工方案.md            # 3-member parallel split + CODEOWNERS sketch
+../Workout/                            # Long-form planning artefacts (FRAMEWORK_COMPLETION_PLAN, etc.)
 ```
 
 ---
@@ -179,13 +194,15 @@ When the three docs conflict on schema, use:
 
 | If you need… | Open |
 |---|---|
-| The constitution: every rule, full schema, agent×skill matrix, design rationale | `.codex/AGENTS.md` (≈1500 lines) |
+| The constitution: every rule, full schema, agent×skill matrix, design rationale | `.codex/AGENTS.md` (≈1700 lines) |
 | A3 grading rubric, capability → agent → skill mapping, demo storyboard | `../CompetitionTheme/A3赛题规划.md` |
+| Data-layer v2 engineering task book (assets · resources · storage · v2 migration) | `../Chat/SecureHub_Data_Layer_V2_工程化改造任务书.md` |
+| 3-member parallel split (A / B / C ownership, CODEOWNERS, API contracts, Harness, MinerU, Scrapling / MediaCrawler / MindSpider) | `../Plan/SecureHub_三人并行开发分工方案.md` |
 | Engineering execution plan: P0/P1/P2 file list, Gantt, completion checklist | `../Workout/1-2FRAMEWORK_COMPLETION_PLAN.md` |
 | What Codex already built and where it diverged | `../Workout/1-3.md` |
 | Codex-specific playbooks (backend / frontend session scripts) | `.codex/workflows/` |
 
-**Order of authority** when documents conflict: `.codex/AGENTS.md` > A3赛题规划 > Workout plans > inline code comments. Update the higher source if the lower one is right.
+**Order of authority** when documents conflict: `.codex/AGENTS.md` > A3赛题规划 > Data-Layer v2 任务书 > 三人分工方案 > Workout plans > inline code comments. Update the higher source if the lower one is right.
 
 ---
 
@@ -195,6 +212,14 @@ When the three docs conflict on schema, use:
 - The existing mock endpoints (`policy.py`, `placeholder.py`, `research.py` and their `services` / `repositories`). They back the挑战杯 demo; do **not** convert them to real until the A3 P0 surface is green.
 - `.codex/`, `.github/`, `docker-compose.yml`, `pyproject.toml`, `package.json` — change only when the task explicitly calls for it; never sweep "while we're here".
 - `frontend/node_modules/`, `backend/.venv/`, `.codegraph/*.db*`, `daemon.pid`, `daemon.log` — runtime artefacts, never commit.
+
+**Hard "do not" list (collection / agent boundary):**
+
+- Do **not** register a `crawler_agent` / `media_agent` / `spider_agent` / `pdf_agent` / `mineru_agent`. Scrapling, MediaCrawler, MindSpider, MinerU, and the Harness are all infrastructure (rule §2.2).
+- Do **not** import MediaCrawler's or MindSpider's platform-specific DB schemas into the SecureHub main DB. Use their JSON / JSONL / CSV / SQLite *exports*, run them through `source_normalizer`, and land them in the unified v2 tables.
+- Do **not** add bypass logic for logins, CAPTCHAs, Cloudflare / anti-bot, proxy rotation, or large-scale concurrent scraping. Public-only, throttled, robots-aware, license-respecting.
+- Do **not** drop `platform / source_url / author / published_at / fetched_at / license / rights_note` from `documents.metadata` — the EvidenceDrawer relies on them.
+- Do **not** rewrite the 3-member ownership boundaries (see `../Plan/SecureHub_三人并行开发分工方案.md` §9 CODEOWNERS) without consensus.
 
 ---
 
@@ -207,4 +232,4 @@ When the three docs conflict on schema, use:
 
 ---
 
-*Last refreshed: 2026-06-08. Constitution source: `.codex/AGENTS.md` (formerly this file before the AGENTS migration).*
+*Last refreshed: 2026-06-09. Constitution source: `.codex/AGENTS.md` (formerly this file before the AGENTS migration). 2026-06-09 update: added §2.1 multi-source collection compliance, expanded SSE to 7 events (added `artifact` / `trace`), added Harness layout, referenced the data-layer v2 task book and the 3-member parallel split.*
