@@ -17,7 +17,8 @@ def stable_id(name: str) -> UUID:
 
 DEMO_USER_ID: UUID = stable_id("user:demo-student")
 DEMO_USER_EMAIL = "demo-student@securehub.local"
-DEMO_USER_NAME = "演示同学"
+DEMO_USER_NAME = "陈同学"
+DEMO_USER_PASSWORD = "SecureHub@2026"
 
 DEMO_USER_DIMENSIONS: dict[str, object] = {
     "knowledge_basis": "中级 — 学过 Web 开发与计算机网络基础",
