@@ -1,14 +1,39 @@
-# Status: partial-real
+# Status: real
 
-"""Pydantic schemas for the ``/api/v1/agents`` + ``/api/v1/agent-runs``
-surfaces (data-layer v2).
-"""
+"""Pydantic schemas for agent registry, run trace, and Day 0 contracts."""
 
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+JsonObject = dict[str, object]
+
+
+class AgentRunDTO(BaseModel):
+    id: str
+    workflow_name: str
+    agent_name: str
+    skill_name: str
+    status: str
+    duration_ms: int | None = None
+    quality_score: float | None = None
+    created_at: datetime
+
+
+class AgentRunDetailDTO(AgentRunDTO):
+    input_summary: JsonObject = Field(default_factory=dict)
+    output_summary: JsonObject = Field(default_factory=dict)
+    evidence_chunk_ids: list[str] = Field(default_factory=list)
+    parent_run_id: str | None = None
+    token_usage: JsonObject | None = None
+
+
+class AgentRunListResponse(BaseModel):
+    items: list[AgentRunDTO]
+    total: int
+    page: int
+    page_size: int
 
 
 class AgentOut(BaseModel):
@@ -33,8 +58,8 @@ class AgentRunOut(BaseModel):
     user_id: UUID | None = None
     parent_run_id: UUID | None = None
     status: str
-    input_summary: dict[str, Any] = Field(default_factory=dict)
-    output_summary: dict[str, Any] = Field(default_factory=dict)
+    input_summary: JsonObject = Field(default_factory=dict)
+    output_summary: JsonObject = Field(default_factory=dict)
     evidence_chunk_ids: list[UUID] = Field(default_factory=list)
     quality_score: float | None = None
     duration_ms: int | None = None
