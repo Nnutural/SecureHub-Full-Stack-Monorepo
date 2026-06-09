@@ -6,12 +6,14 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.security import hash_password
 from app.db.seeds._constants import (
     DEMO_USER_CAPABILITIES,
     DEMO_USER_DIMENSIONS,
     DEMO_USER_EMAIL,
     DEMO_USER_ID,
     DEMO_USER_NAME,
+    DEMO_USER_PASSWORD,
 )
 from app.db.session import get_sessionmaker
 from app.repositories.identity.capabilities import UserCapabilityRepository
@@ -24,13 +26,21 @@ async def _seed(session: AsyncSession) -> None:
     profiles = UserProfileRepository(session)
     caps = UserCapabilityRepository(session)
 
-    if await users.get_by_id(DEMO_USER_ID) is None:
+    user = await users.get_by_id(DEMO_USER_ID)
+    if user is None:
         await users.create(
             user_id=DEMO_USER_ID,
             email=DEMO_USER_EMAIL,
             display_name=DEMO_USER_NAME,
+            hashed_password=hash_password(DEMO_USER_PASSWORD),
             is_active=True,
         )
+    else:
+        user.email = DEMO_USER_EMAIL
+        user.display_name = DEMO_USER_NAME
+        user.hashed_password = hash_password(DEMO_USER_PASSWORD)
+        user.is_active = True
+        await session.flush()
 
     await profiles.upsert(user_id=DEMO_USER_ID, dimensions=DEMO_USER_DIMENSIONS)
 

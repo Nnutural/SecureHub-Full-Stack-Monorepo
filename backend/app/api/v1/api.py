@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     agent_runs,
     agents,
+    auth,
     courses,
     ctftime,
     health,
@@ -25,6 +26,7 @@ api_router.include_router(placeholder.router, prefix="/placeholder", tags=["plac
 api_router.include_router(research.router, prefix="/research", tags=["research"])
 api_router.include_router(ctftime.router, prefix="/ctftime", tags=["ctftime"])
 api_router.include_router(policy.router, prefix="/policy", tags=["policy"])
+api_router.include_router(auth.router, tags=["auth"])
 
 # Data-layer v2 partial-real endpoints (A3 P0 surface).
 api_router.include_router(profile.router, tags=["profile"])

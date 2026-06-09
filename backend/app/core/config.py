@@ -23,6 +23,9 @@ class Settings(BaseSettings):
             "http://127.0.0.1:5173",
         ]
     )
+    FRONTEND_ORIGIN_REGEX: str | None = (
+        r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?$"
+    )
     DEBUG: bool = True
     # SQLite by default so ``alembic upgrade head`` works without a Postgres
     # container; production / docker-compose overrides via env to
@@ -60,6 +63,13 @@ class Settings(BaseSettings):
             if text.startswith("["):
                 return json.loads(text)
             return [item.strip() for item in text.split(",") if item.strip()]
+        return value
+
+    @field_validator("FRONTEND_ORIGIN_REGEX", mode="before")
+    @classmethod
+    def parse_frontend_origin_regex(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
         return value
 
     @field_validator("DEBUG", mode="before")
