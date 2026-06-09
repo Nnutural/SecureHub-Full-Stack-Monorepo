@@ -25,6 +25,9 @@ dependencies = [
   "websockets>=13.1",
 ]
 
+[project.scripts]
+app = "server:app"
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
