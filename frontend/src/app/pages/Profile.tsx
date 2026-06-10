@@ -1,8 +1,9 @@
 import { Download, RotateCcw, Save, UploadCloud, User } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PageShell } from '../components/PageShell';
+import { ErrorState, LoadingState } from '../components/StateView';
 import { AccountCompliancePanel } from '../features/profile/components/AccountCompliancePanel';
 import { AssetListPanel } from '../features/profile/components/AssetListPanel';
 import { AssetVaultPanel } from '../features/profile/components/AssetVaultPanel';
@@ -11,13 +12,33 @@ import { PersonaPanel } from '../features/profile/components/PersonaPanel';
 import { ProfileEditDrawer } from '../features/profile/components/ProfileEditDrawer';
 import { ProfileWorkbenchBar } from '../features/profile/components/ProfileWorkbenchBar';
 import { SubmitChecklistPanel } from '../features/profile/components/SubmitChecklistPanel';
+import { useAuth } from '../features/auth/store';
+import { getMyProfile } from '../features/profile/api';
 import { createMockAsset, useProfileWorkspace } from '../features/profile/store';
 import { downloadJsonFile } from '../features/profile/utils';
+import type { ProfileDTO } from '@/lib/sse.types';
 
 export function Profile() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { workspace, dispatch, saveNow, resetDemo } = useProfileWorkspace();
   const [editOpen, setEditOpen] = useState(false);
+  const [profile, setProfile] = useState<ProfileDTO | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState('');
+
+  const loadProfile = () => {
+    setProfileLoading(true);
+    setProfileError('');
+    getMyProfile(user?.id ?? '00000000-0000-0000-0000-000000000001')
+      .then(setProfile)
+      .catch((error) => setProfileError(error instanceof Error ? error.message : '画像数据加载失败'))
+      .finally(() => setProfileLoading(false));
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, [user?.id]);
 
   const navigateWithToast = (path: string, message: string) => {
     navigate(path);
@@ -85,8 +106,21 @@ export function Profile() {
             description: '个人能力雷达、方向偏好标签、画像来源与资料编辑闭环',
             render: () => (
               <div className="space-y-4">
-                <ProfileWorkbenchBar workspace={workspace} onSave={save} onReset={reset} />
-                <PersonaPanel workspace={workspace} dispatch={dispatch} onEdit={() => setEditOpen(true)} />
+                {profileLoading ? (
+                  <LoadingState text="正在加载画像数据…" />
+                ) : profileError ? (
+                  <ErrorState message={profileError} onRetry={loadProfile} />
+                ) : (
+                  <>
+                    <ProfileWorkbenchBar workspace={workspace} onSave={save} onReset={reset} />
+                    <PersonaPanel
+                      workspace={workspace}
+                      dispatch={dispatch}
+                      onEdit={() => setEditOpen(true)}
+                      capabilities={profile?.capabilities ?? []}
+                    />
+                  </>
+                )}
               </div>
             ),
           },
