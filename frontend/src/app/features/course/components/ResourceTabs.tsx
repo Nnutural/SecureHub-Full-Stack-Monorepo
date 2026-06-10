@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PlayCircle } from 'lucide-react';
-import { ErrorState, InsufficientEvidenceState, LoadingState } from '@/app/components/StateView';
+import { ErrorBoundary } from '@/app/components/ErrorBoundary';
+import { ErrorState, InsufficientEvidenceState, LoadingState, ReconnectingState } from '@/app/components/StateView';
 import { useEvidence } from '@/app/components/EvidenceDrawer';
 import { useAgentTraceDispatch } from '@/app/features/agents/store';
 import { mockResources } from '../mockData';
@@ -43,6 +44,7 @@ export function ResourceTabs() {
   const [progressText, setProgressText] = useState('');
   const resource = resources[active] ?? fallbackResource(active);
   const isGenerating = resource.status === 'generating';
+  const isReconnecting = resource.errorCode === 'sse_reconnecting';
 
   const selectedResourceTypes = useMemo(() => resourceTypes, []);
 
@@ -100,10 +102,22 @@ export function ResourceTabs() {
           updateResource(targetType, (previous) => ({
             ...previous,
             status: 'ready',
+            errorCode: undefined,
+            errorMessage: undefined,
             qualityScore: done.quality_score,
           }));
         },
         onError(error) {
+          if (error.code === 'sse_reconnecting') {
+            setProgressText(error.message);
+            updateResource(targetType, (previous) => ({
+              ...previous,
+              status: 'generating',
+              errorCode: error.code,
+              errorMessage: error.message,
+            }));
+            return;
+          }
           setProgressText('');
           updateResource(targetType, (previous) => ({
             ...previous,
@@ -171,7 +185,8 @@ export function ResourceTabs() {
         </button>
       </div>
 
-      {isGenerating && <LoadingState text={progressText || '正在生成中…'} />}
+      {isReconnecting && <ReconnectingState text={resource.errorMessage} />}
+      {isGenerating && !isReconnecting && <LoadingState text={progressText || '正在生成中…'} />}
       {resource.status === 'failed' && resource.errorCode === 'InsufficientEvidence' && (
         <InsufficientEvidenceState onRetry={startGeneration} />
       )}
@@ -179,7 +194,9 @@ export function ResourceTabs() {
         <ErrorState message={resource.errorMessage ?? '资源生成失败'} onRetry={startGeneration} />
       )}
 
-      {renderResource()}
+      <ErrorBoundary resetKey={active}>
+        {renderResource()}
+      </ErrorBoundary>
     </div>
   );
 }

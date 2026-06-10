@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AgentBadge } from '@/app/components/AgentBadge';
+import { ErrorBoundary } from '@/app/components/ErrorBoundary';
 import { PageShell, type TabDef } from '@/app/components/PageShell';
 import { StreamingProgress } from '@/app/components/StreamingProgress';
 import { AgentTracePanel } from '@/app/features/agents/components/AgentTracePanel';
@@ -71,7 +72,9 @@ export function CourseStudy() {
   return (
     <AgentTraceProvider>
       <CourseProvider>
-        <CourseStudyInner />
+        <ErrorBoundary resetKey="course-study">
+          <CourseStudyInner />
+        </ErrorBoundary>
       </CourseProvider>
     </AgentTraceProvider>
   );

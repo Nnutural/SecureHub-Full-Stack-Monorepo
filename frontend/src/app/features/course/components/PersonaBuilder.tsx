@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, MessageSquareText, Send } from 'lucide-react';
 import { Card, Tag } from '@/app/components/PageShell';
-import { ErrorState, InsufficientEvidenceState, LoadingState } from '@/app/components/StateView';
+import { ErrorState, InsufficientEvidenceState, LoadingState, ReconnectingState } from '@/app/components/StateView';
 import { useEvidence } from '@/app/components/EvidenceDrawer';
 import { useAgentTraceDispatch } from '@/app/features/agents/store';
 import { isMockMode } from '@/lib/mock';
@@ -187,6 +187,10 @@ export function PersonaBuilder({ userId = mockPersona.userId }: PersonaBuilderPr
         courseDispatch({ type: 'setPersona', persona: buildPersona(userId, fullDimensions) });
       },
       onError(event) {
+        if (event.code === 'sse_reconnecting') {
+          setError({ code: event.code, message: event.message });
+          return;
+        }
         setStreaming(false);
         setError({ code: event.code, message: event.message });
       },
@@ -239,9 +243,10 @@ export function PersonaBuilder({ userId = mockPersona.userId }: PersonaBuilderPr
             ))}
           </div>
 
-          {streaming && <LoadingState text="画像智能体正在追问…" />}
+          {error?.code === 'sse_reconnecting' && <ReconnectingState text={error.message} />}
+          {streaming && error?.code !== 'sse_reconnecting' && <LoadingState text="画像智能体正在追问…" />}
           {error?.code === 'InsufficientEvidence' && <InsufficientEvidenceState onRetry={submit} />}
-          {error && error.code !== 'InsufficientEvidence' && (
+          {error && !['InsufficientEvidence', 'sse_reconnecting'].includes(error.code ?? '') && (
             <ErrorState message={error.message} onRetry={submit} />
           )}
 
