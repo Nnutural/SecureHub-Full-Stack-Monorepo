@@ -69,6 +69,36 @@ function buildDiagram(scenes: StoryboardScene[]): string {
   return lines.join('\n');
 }
 
+function escapeSvgText(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildStaticDiagramSvg(scenes: StoryboardScene[]): string {
+  const width = 320;
+  const height = Math.max(120, scenes.length * 74);
+  const nodes = scenes.map((scene, index) => {
+    const y = 20 + index * 74;
+    const line = index < scenes.length - 1
+      ? `<line x1="160" y1="${y + 34}" x2="160" y2="${y + 64}" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)" />`
+      : '';
+    return `
+      <g>
+        <rect x="24" y="${y}" width="272" height="44" rx="8" fill="#eff6ff" stroke="#2563eb" />
+        <text x="160" y="${y + 27}" text-anchor="middle" font-size="13" fill="#0f172a">${escapeSvgText(scene.scene)}</text>
+        ${line}
+      </g>`;
+  }).join('');
+  return `
+    <svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" role="img" aria-label="分镜流程图" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="#94a3b8" />
+        </marker>
+      </defs>
+      ${nodes}
+    </svg>`;
+}
+
 export function VideoResourceView({ resource }: VideoResourceViewProps) {
   const script = useMemo(() => parseVideoScript(resource.content), [resource.content]);
   const diagram = useMemo(() => buildDiagram(script.scenes), [script.scenes]);
@@ -78,6 +108,10 @@ export function VideoResourceView({ resource }: VideoResourceViewProps) {
   useEffect(() => {
     let disposed = false;
     async function renderDiagram() {
+      if (!import.meta.env.DEV) {
+        setDiagramSvg(buildStaticDiagramSvg(script.scenes));
+        return;
+      }
       const { default: mermaid } = await import('mermaid');
       mermaid.initialize({
         startOnLoad: false,
