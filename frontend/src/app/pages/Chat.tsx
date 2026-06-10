@@ -128,7 +128,7 @@ export function Chat() {
         messageId,
         patch: {
           status: 'error',
-          content: error instanceof Error ? error.message : 'mock 生成失败，请重试。',
+          content: error instanceof Error ? error.message : '演示回答生成失败，请重试。',
           citations: [],
           structuredCards: [],
         },

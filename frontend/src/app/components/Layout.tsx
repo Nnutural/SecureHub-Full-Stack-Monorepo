@@ -87,10 +87,11 @@ export const navItems: NavItem[] = [
     icon: FlaskConical,
     label: '科研创新',
     children: [
+      { key: 'recommend', label: '个性化推荐' },
       { key: 'fund', label: '基金项目' },
       { key: 'news', label: '科研动态' },
       { key: 'innovation', label: '学术创新' },
-      { key: 'hot', label: '热点文章' },
+      { key: 'hot', label: '舆情趋势' },
       { key: 'patent', label: '专利成果' },
       { key: 'lab', label: '开放实验室' },
       { key: 'compare', label: '科研机会对比' },
@@ -331,7 +332,7 @@ function LayoutFrame() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={evidence.toggle}
+              onClick={(event) => evidence.toggle(event.currentTarget)}
               className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
             >
               <Database className="w-4 h-4" />

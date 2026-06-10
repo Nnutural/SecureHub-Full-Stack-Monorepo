@@ -125,7 +125,7 @@ export function PersonaPanel({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <Card title="画像来源说明" subtitle="用于演示画像生成的 mock 证据">
+        <Card title="画像来源说明" subtitle="用于演示画像生成的本地证据">
           <div className="grid gap-3 md:grid-cols-2">
             {persona.personaSources.map((source) => (
               <div key={source.id} className="rounded-lg border border-slate-100 p-3">

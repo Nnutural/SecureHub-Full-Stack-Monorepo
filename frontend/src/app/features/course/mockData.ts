@@ -1,5 +1,7 @@
 import type { AssessmentReport, LearningPath, LearningPersona, ResourceItem } from './types';
 import { mockEvidenceChunks } from '@/lib/mock/evidence.mock';
+import { mockResourceContent, mockResourceTitle } from '@/lib/mock/resources.mock';
+import { demoCurrentKpId } from '@/lib/mock/storyline';
 
 export const mockPersona: LearningPersona = {
   userId: 'demo-user',
@@ -19,14 +21,14 @@ export const mockPersona: LearningPersona = {
 export const mockLearningPath: LearningPath = {
   courseId: '00000000-0000-0000-0000-000000000101',
   nodes: [
-    { id: 'sqli', label: 'SQL 注入基础', status: 'active', priority: 1 },
+    { id: demoCurrentKpId, label: 'SQL 注入基础', status: 'active', priority: 1 },
     { id: 'xss', label: 'XSS 跨站脚本', status: 'ready', priority: 2 },
     { id: 'csrf', label: 'CSRF 请求伪造', status: 'ready', priority: 3 },
     { id: 'upload', label: '文件上传风险', status: 'locked', priority: 4 },
     { id: 'ssrf', label: 'SSRF 服务端请求伪造', status: 'locked', priority: 5 },
   ],
   edges: [
-    { id: 'sqli-xss', source: 'sqli', target: 'xss' },
+    { id: 'sql_injection-xss', source: demoCurrentKpId, target: 'xss' },
     { id: 'xss-csrf', source: 'xss', target: 'csrf' },
     { id: 'csrf-upload', source: 'csrf', target: 'upload' },
     { id: 'upload-ssrf', source: 'upload', target: 'ssrf' },
@@ -37,36 +39,28 @@ export const mockLearningPath: LearningPath = {
   ],
 };
 
-export const mockResources: ResourceItem[] = [
-  {
-    id: 'res-doc-sqli',
-    type: 'doc',
-    title: 'SQL 注入基础讲解文档',
-    status: 'ready',
-    content: '### SQL 注入基础\n\nSQL 注入来自不可信输入与查询语句的错误拼接。学习时先判断输入是否影响查询结构，再使用参数化查询完成修复。',
-    evidenceRefs: mockEvidenceChunks,
-  },
-  {
-    id: 'res-quiz-sqli',
-    type: 'quiz',
-    title: 'SQL 注入快速自测',
-    status: 'ready',
-    content: '为什么参数化查询可以降低 SQL 注入风险？',
-    evidenceRefs: mockEvidenceChunks.slice(0, 2),
-  },
-  {
-    id: 'res-readings-sqli',
-    type: 'readings',
-    title: 'SQL 注入拓展阅读',
-    status: 'idle',
-    content: '生成后将展示 OWASP、PortSwigger 与视频转写来源。',
-    evidenceRefs: [],
-  },
-];
+const mockResourceTypes = [
+  'doc',
+  'ppt',
+  'mindmap',
+  'quiz',
+  'lab',
+  'video',
+  'readings',
+] as const;
+
+export const mockResources: ResourceItem[] = mockResourceTypes.map((type) => ({
+  id: `res-${type}-sqli`,
+  type,
+  title: mockResourceTitle[type],
+  status: 'ready',
+  content: mockResourceContent[type],
+  evidenceRefs: mockEvidenceChunks,
+}));
 
 export const mockAssessment: AssessmentReport = {
   score: 0.82,
-  scoreVector: { sqli: 0.52, secure_coding: 0.44, evidence: 0.48 },
+  scoreVector: { sql_injection: 0.52, secure_coding: 0.44, evidence: 0.48 },
   feedback: ['参数化查询理解较好，建议继续补充布尔盲注与时间盲注判断练习。', '完成一次修复前后对比复盘，可以提升实操维度置信度。'],
   updatedProfile: { weak_points: '布尔盲注与时间盲注判断步骤' },
   updatedCapabilities: [
