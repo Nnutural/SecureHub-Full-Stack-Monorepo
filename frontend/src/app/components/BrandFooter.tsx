@@ -74,8 +74,9 @@ export function BrandFooter() {
                 </div>
               ))}
             </div>
-            <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
-              本系统遵循开源组件许可要求展示归属信息，业务数据与评审演示内容归项目团队所有。
+            <div className="space-y-1 border-t border-slate-100 px-5 py-3 text-xs leading-5 text-slate-500">
+              <p>本系统遵循开源组件许可要求展示归属信息，业务数据与评审演示内容归项目团队所有。</p>
+              <p>AI Coding 工具说明：前端工程由 OpenAI Codex 辅助实现与验证，最终代码由项目团队审阅确认。</p>
             </div>
           </div>
         </div>
