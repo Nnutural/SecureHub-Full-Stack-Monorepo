@@ -1,5 +1,6 @@
 import type { AssessmentReport, LearningPath, LearningPersona, ResourceItem } from './types';
 import { mockEvidenceChunks } from '@/lib/mock/evidence.mock';
+import { mockResourceContent, mockResourceTitle } from '@/lib/mock/resources.mock';
 
 export const mockPersona: LearningPersona = {
   userId: 'demo-user',
@@ -37,32 +38,24 @@ export const mockLearningPath: LearningPath = {
   ],
 };
 
-export const mockResources: ResourceItem[] = [
-  {
-    id: 'res-doc-sqli',
-    type: 'doc',
-    title: 'SQL 注入基础讲解文档',
-    status: 'ready',
-    content: '### SQL 注入基础\n\nSQL 注入来自不可信输入与查询语句的错误拼接。学习时先判断输入是否影响查询结构，再使用参数化查询完成修复。',
-    evidenceRefs: mockEvidenceChunks,
-  },
-  {
-    id: 'res-quiz-sqli',
-    type: 'quiz',
-    title: 'SQL 注入快速自测',
-    status: 'ready',
-    content: '为什么参数化查询可以降低 SQL 注入风险？',
-    evidenceRefs: mockEvidenceChunks.slice(0, 2),
-  },
-  {
-    id: 'res-readings-sqli',
-    type: 'readings',
-    title: 'SQL 注入拓展阅读',
-    status: 'idle',
-    content: '生成后将展示 OWASP、PortSwigger 与视频转写来源。',
-    evidenceRefs: [],
-  },
-];
+const mockResourceTypes = [
+  'doc',
+  'ppt',
+  'mindmap',
+  'quiz',
+  'lab',
+  'video',
+  'readings',
+] as const;
+
+export const mockResources: ResourceItem[] = mockResourceTypes.map((type) => ({
+  id: `res-${type}-sqli`,
+  type,
+  title: mockResourceTitle[type],
+  status: 'ready',
+  content: mockResourceContent[type],
+  evidenceRefs: mockEvidenceChunks,
+}));
 
 export const mockAssessment: AssessmentReport = {
   score: 0.82,
