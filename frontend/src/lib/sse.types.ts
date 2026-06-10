@@ -1,5 +1,19 @@
 export type ResourceType = 'doc' | 'ppt' | 'mindmap' | 'quiz' | 'lab' | 'video' | 'readings';
 
+export type CapabilityDTO = {
+  dimension: string;
+  score: number;
+  confidence: number;
+  evidence_count: number;
+};
+
+export type ProfileDTO = {
+  user_id: string;
+  dimensions: Record<string, unknown>;
+  capabilities: CapabilityDTO[];
+  updated_at: string;
+};
+
 export type EvidenceChunkDTO = {
   chunk_id: string;
   document_id: string;
@@ -81,9 +95,9 @@ export type DoneEvent = {
 export type ErrorEvent = {
   event: 'error';
   data: {
-    code: string;
+    code?: string;
     message: string;
-    recoverable: boolean;
+    recoverable?: boolean;
   };
 };
 
