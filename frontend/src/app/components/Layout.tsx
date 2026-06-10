@@ -21,6 +21,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { EvidenceDrawer, EvidenceProvider, useEvidence } from './EvidenceDrawer';
+import { BrandFooter } from './BrandFooter';
 import { GlobalSearch } from './GlobalSearch';
 import {
   DropdownMenu,
@@ -382,6 +383,7 @@ function LayoutFrame() {
           <div className="max-w-[1280px] mx-auto px-6 py-6">
             <Outlet />
           </div>
+          <BrandFooter />
         </main>
       </div>
 
