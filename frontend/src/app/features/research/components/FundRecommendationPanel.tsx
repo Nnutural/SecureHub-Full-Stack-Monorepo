@@ -42,7 +42,7 @@ export function FundRecommendationPanel() {
           <article key={item.id} className="flex min-h-[260px] flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-medium text-brand-blue-600">career_planner 推荐</p>
+                <p className="text-xs font-medium text-brand-blue-600">职业规划智能体推荐</p>
                 <h3 className="mt-1 text-base font-semibold leading-6 text-slate-900">{item.project_name}</h3>
               </div>
               <span className="rounded-md bg-emerald-50 px-2 py-1 text-sm font-semibold text-emerald-700">{percent}%</span>

@@ -28,8 +28,8 @@ export function CourseEntryCard({ courseId = 'course_websec' }: CourseEntryCardP
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Tag tone="green">9 个既有智能体</Tag>
-          <Tag tone="blue">SSE 流式进度</Tag>
-          <Tag tone="amber">RAG 证据门槛</Tag>
+          <Tag tone="blue">流式进度</Tag>
+          <Tag tone="amber">证据检索门槛</Tag>
         </div>
       </Card>
     </div>

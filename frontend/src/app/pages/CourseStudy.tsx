@@ -156,7 +156,7 @@ function CourseStudyInner() {
                 title="演示用：使用本地 Mock 数据"
                 className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
               >
-                {mockEnabled ? '使用真后端' : '使用 Mock 演示'}
+                {mockEnabled ? '使用真后端' : '使用演示数据'}
               </button>
             )}
             {import.meta.env.DEV && mockEnabled && (

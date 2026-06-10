@@ -168,7 +168,7 @@ export function Research() {
       );
     }
 
-    if (loading) return <StateBlock state="loading" message="正在加载科研创新数据..." />;
+    if (loading) return <StateBlock state="loading" message="正在加载科研创新数据…" />;
     if (error) return <StateBlock state="error" message={error} onRetry={loadItems} />;
     if (!items.length) return <StateBlock state="empty" message="当前筛选条件下暂无数据。" />;
 
