@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { EvidenceDrawer, EvidenceProvider, useEvidence } from './EvidenceDrawer';
 import { BrandFooter } from './BrandFooter';
+import { BackendStatusPanel } from './BackendStatusPanel';
 import { GlobalSearch } from './GlobalSearch';
 import {
   DropdownMenu,
@@ -389,6 +390,7 @@ function LayoutFrame() {
       </div>
 
       <EvidenceDrawer />
+      <BackendStatusPanel />
     </div>
   );
 }
