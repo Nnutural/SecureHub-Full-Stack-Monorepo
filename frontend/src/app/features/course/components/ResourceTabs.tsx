@@ -5,7 +5,7 @@ import { ErrorState, InsufficientEvidenceState, LoadingState, ReconnectingState 
 import { useEvidence } from '@/app/components/EvidenceDrawer';
 import { useAgentTraceDispatch } from '@/app/features/agents/store';
 import { mockResources } from '../mockData';
-import { useCourseState } from '../store';
+import { useCourseDispatch, useCourseState } from '../store';
 import type { ResourceItem, ResourceType } from '../types';
 import { resourceTypeIcon, resourceTypeLabel } from '../utils';
 import { streamResourceGeneration } from '../api';
@@ -30,8 +30,8 @@ function fallbackResource(type: ResourceType): ResourceItem {
   };
 }
 
-function initialResourceMap(): Partial<Record<ResourceType, ResourceItem>> {
-  return Object.fromEntries(mockResources.map((resource) => [resource.type, resource])) as Partial<Record<ResourceType, ResourceItem>>;
+function initialResourceMap(source: ResourceItem[] = mockResources): Partial<Record<ResourceType, ResourceItem>> {
+  return Object.fromEntries(source.map((resource) => [resource.type, resource])) as Partial<Record<ResourceType, ResourceItem>>;
 }
 
 function qualityBadgeClass(score?: number): string {
@@ -54,12 +54,14 @@ function ResourceQualityBadge({ score }: { score?: number }) {
 }
 
 export function ResourceTabs() {
-  const { currentKpId } = useCourseState();
+  const { currentKpId, resources: storedResources } = useCourseState();
+  const courseDispatch = useCourseDispatch();
   const evidence = useEvidence();
   const traceDispatch = useAgentTraceDispatch();
   const cancelRef = useRef<() => void>();
+  const persistedSignaturesRef = useRef<Record<string, string>>({});
   const [active, setActive] = useState<ResourceType>('doc');
-  const [resources, setResources] = useState<Partial<Record<ResourceType, ResourceItem>>>(() => initialResourceMap());
+  const [resources, setResources] = useState<Partial<Record<ResourceType, ResourceItem>>>(() => initialResourceMap(storedResources));
   const [progressText, setProgressText] = useState('');
   const resource = resources[active] ?? fallbackResource(active);
   const isGenerating = resource.status === 'generating';
@@ -67,10 +69,25 @@ export function ResourceTabs() {
 
   const selectedResourceTypes = useMemo(() => resourceTypes, []);
 
+  useEffect(() => {
+    setResources(initialResourceMap(storedResources));
+  }, [storedResources]);
+
+  useEffect(() => {
+    Object.values(resources).forEach((resource) => {
+      if (!resource || resource.status !== 'ready') return;
+      const signature = `${resource.id}:${resource.qualityScore ?? ''}:${resource.content.length}:${resource.evidenceRefs.length}`;
+      if (persistedSignaturesRef.current[resource.type] === signature) return;
+      persistedSignaturesRef.current[resource.type] = signature;
+      courseDispatch({ type: 'upsertResource', resource });
+    });
+  }, [courseDispatch, resources]);
+
   const updateResource = (type: ResourceType, update: (resource: ResourceItem) => ResourceItem) => {
     setResources((current) => {
       const previous = current[type] ?? fallbackResource(type);
-      return { ...current, [type]: update(previous) };
+      const next = update(previous);
+      return { ...current, [type]: next };
     });
   };
 
