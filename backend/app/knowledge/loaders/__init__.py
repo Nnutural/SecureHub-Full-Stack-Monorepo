@@ -1,4 +1,4 @@
-# Status: [planned]
+# Status: real
 
 from app.knowledge.loaders.course_loader import CourseLoadResult, load_course_materials
 from app.knowledge.loaders.embed_chunks import EmbedChunksResult, embed_chunks
