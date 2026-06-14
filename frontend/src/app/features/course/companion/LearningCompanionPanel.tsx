@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, PanelRightOpen } from 'lucide-react';
 import { useEvidence } from '@/app/components/EvidenceDrawer';
+import { cn } from '@/app/components/ui/utils';
 import { useAgentTraceDispatch } from '@/app/features/agents/store';
 import { isMockMode } from '@/lib/mock';
 import { mockEvidenceChunks } from '@/lib/mock/evidence.mock';
@@ -31,6 +32,7 @@ export function LearningCompanionPanel({
   onWorkflowTrace,
   onShowWorkflow,
   workflowCollapsed,
+  className,
 }: {
   course: CourseCatalogItem;
   onMockWorkflowRun: () => void;
@@ -39,6 +41,7 @@ export function LearningCompanionPanel({
   /** Chat-first：右侧编排图折叠时，header 显示「显示编排图」入口。 */
   onShowWorkflow?: () => void;
   workflowCollapsed?: boolean;
+  className?: string;
 }) {
   const preset = useMemo(() => getCompanionPreset(course), [course]);
   const [draft, setDraft] = useState('');
@@ -202,7 +205,7 @@ export function LearningCompanionPanel({
 
   return (
     <section
-      className="flex min-h-[640px] min-w-0 flex-col gap-3"
+      className={cn('flex min-h-[520px] min-w-0 flex-col gap-3', className)}
       aria-label={`${course.title} 学习助手对话区`}
     >
       {/* 低权重 header：assistant 标识 + 当前课程 + 可选「显示编排图」入口 */}

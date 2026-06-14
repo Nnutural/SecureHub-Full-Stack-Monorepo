@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -62,11 +62,45 @@ export function ReactFlowWorkflowCanvas({
 }) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const [minimapOpen, setMinimapOpen] = useState(false);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const reactFlowInstance = useRef<any>(null);
+
+  // ReactFlow 挂载后存储实例（不在此处 fitView，避免容器未就绪）
+  const onInit = useCallback((instance: any) => {
+    reactFlowInstance.current = instance;
+  }, []);
+
+  // ResizeObserver：容器尺寸变化（展开/隐藏编排图）后重新适配
+  useEffect(() => {
+    const el = reactFlowWrapper.current;
+    if (!el) return;
+    let debounce: ReturnType<typeof setTimeout>;
+    const observer = new ResizeObserver(() => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        reactFlowInstance.current?.fitView({ padding: compact ? 0.18 : 0.22, duration: 200 });
+      }, 100);
+    });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      clearTimeout(debounce);
+    };
+  }, [compact]);
 
   const laidOutNodes = useMemo(
     () => applyOrbLayout(workflow, { compact }),
     [compact, workflow],
   );
+
+  // 节点 / 工作流 / compact 变化后延迟适配视口
+  useEffect(() => {
+    if (!reactFlowInstance.current) return;
+    const timer = setTimeout(() => {
+      reactFlowInstance.current?.fitView({ padding: compact ? 0.18 : 0.22, duration: 200 });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [compact, workflow.id, laidOutNodes.length]);
   const selectedNode = laidOutNodes.find((node) => node.id === selectedNodeId);
   const selectedRun = selectedNode ? runState.nodes[selectedNode.id] : undefined;
 
@@ -110,13 +144,12 @@ export function ReactFlowWorkflowCanvas({
   const qualityText =
     runState.overallQuality == null ? '待评估' : `${Math.round(runState.overallQuality * 100)}%`;
 
-  const minHeightClass = compact ? 'min-h-[540px] max-h-[620px]' : 'min-h-[640px]';
-  const headerPadTop = compact ? 'pt-14' : 'pt-16';
+  const heightClass = compact ? 'h-[440px]' : 'min-h-[640px]';
 
   return (
     <section
-      className={`relative flex ${minHeightClass} min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-gradient-to-b from-white via-white to-slate-50/60 ${
-        compact ? 'shadow-[0_8px_28px_-20px_rgba(15,23,42,0.25)]' : 'shadow-[0_18px_50px_-32px_rgba(15,23,42,0.35)]'
+      className={`relative flex ${heightClass} min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-gradient-to-b from-white via-white to-slate-50/60 transition-shadow duration-300 hover:border-slate-300 ${
+        compact ? 'shadow-[0_8px_28px_-20px_rgba(15,23,42,0.25)] hover:shadow-[0_12px_32px_-20px_rgba(15,23,42,0.3)]' : 'shadow-[0_18px_50px_-32px_rgba(15,23,42,0.35)]'
       }`}
       aria-label="9 智能体工作流画布"
     >
@@ -139,7 +172,7 @@ export function ReactFlowWorkflowCanvas({
             disabled={!mockControlsEnabled}
             title={mockControlsEnabled ? '运行 mock 工作流回放' : '真后端模式由 SSE trace 驱动'}
             aria-label="运行工作流"
-            className={`inline-flex ${compact ? 'h-6' : 'h-7'} items-center gap-1 rounded-lg bg-brand-blue-600 px-2 text-xs font-medium text-white hover:bg-brand-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300`}
+            className={`inline-flex ${compact ? 'h-6' : 'h-7'} items-center gap-1 rounded-lg bg-brand-blue-600 px-2 text-xs font-medium text-white hover:bg-brand-blue-700 active:scale-95 transition-transform disabled:cursor-not-allowed disabled:bg-slate-300`}
           >
             <Play className="h-3 w-3" />
             运行
@@ -149,7 +182,7 @@ export function ReactFlowWorkflowCanvas({
             onClick={onPause}
             disabled={!mockControlsEnabled || runState.phase !== 'running'}
             aria-label="暂停"
-            className={`inline-flex ${compact ? 'h-6' : 'h-7'} items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50`}
+            className={`inline-flex ${compact ? 'h-6' : 'h-7'} items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 hover:bg-slate-50 active:scale-95 transition-transform disabled:cursor-not-allowed disabled:opacity-50`}
           >
             <Pause className="h-3 w-3" />
             暂停
@@ -159,7 +192,7 @@ export function ReactFlowWorkflowCanvas({
             onClick={onReset}
             disabled={!mockControlsEnabled}
             aria-label="重置"
-            className={`inline-flex ${compact ? 'h-6' : 'h-7'} items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50`}
+            className={`inline-flex ${compact ? 'h-6' : 'h-7'} items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 hover:bg-slate-50 active:scale-95 transition-transform disabled:cursor-not-allowed disabled:opacity-50`}
           >
             <RotateCcw className="h-3 w-3" />
             重置
@@ -230,7 +263,11 @@ export function ReactFlowWorkflowCanvas({
         </div>
       </header>
 
-      <div className={`relative min-h-0 flex-1 ${headerPadTop}`}>
+      <div
+        ref={reactFlowWrapper}
+        className="absolute inset-x-0 bottom-0"
+        style={{ top: compact ? '40px' : '48px' }}
+      >
         <ReactFlowProvider>
           <ReactFlow
             nodes={nodes}
@@ -240,10 +277,11 @@ export function ReactFlowWorkflowCanvas({
             nodesDraggable={false}
             nodesConnectable={false}
             elementsSelectable
-            fitView
+            defaultViewport={{ x: 0, y: 0, zoom: 0.85 }}
             fitViewOptions={{ padding: compact ? 0.18 : 0.22 }}
-            minZoom={0.5}
-            maxZoom={1.25}
+            onInit={onInit}
+            minZoom={0.35}
+            maxZoom={1.5}
             proOptions={{ hideAttribution: true }}
             onNodeClick={(_, node) => setSelectedNodeId(node.id)}
             onPaneClick={() => setSelectedNodeId(undefined)}

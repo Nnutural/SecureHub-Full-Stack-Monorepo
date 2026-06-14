@@ -24,11 +24,11 @@ const standardPositions: Record<AgentId, { x: number; y: number }> = {
 const compactPositions: Record<AgentId, { x: number; y: number }> = {
   career_planner: { x: 14, y: 132 },
   task_orchestrator: { x: 132, y: 132 },
-  doc_archivist: { x: 248, y: 30 },
-  competition_advisor: { x: 286, y: 108 },
-  topic_explorer: { x: 286, y: 184 },
-  hot_analyst: { x: 248, y: 244 },
-  outcome_evaluator: { x: 380, y: 136 },
+  doc_archivist: { x: 226, y: 30 },
+  competition_advisor: { x: 262, y: 108 },
+  topic_explorer: { x: 262, y: 184 },
+  hot_analyst: { x: 226, y: 244 },
+  outcome_evaluator: { x: 340, y: 136 },
   policy_interpreter: { x: 80, y: 280 },
   job_analyst: { x: 196, y: 296 },
 };

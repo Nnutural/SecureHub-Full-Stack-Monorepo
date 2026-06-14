@@ -25,7 +25,6 @@ export function CourseDialogueMode({ course }: { course: CourseCatalogItem }) {
   const { collapsed, mode, toggle, setCollapsed } = useWorkflowPanelCollapsed();
   const [overlayOpen, setOverlayOpen] = useState(false);
 
-  // overlay 模式下「展开」= 打开抽屉；inline 模式下「展开」= 切 collapsed
   const showWorkflow = useCallback(() => {
     if (mode === 'overlay') {
       setOverlayOpen(true);
@@ -42,17 +41,9 @@ export function CourseDialogueMode({ course }: { course: CourseCatalogItem }) {
     if (!collapsed) setCollapsed(true);
   }, [collapsed, mode, setCollapsed]);
 
-  // 切换课程时关闭 overlay，避免新课程开局就被遮罩。
   useEffect(() => {
     setOverlayOpen(false);
   }, [course.id]);
-
-  // 在 inline 模式下根据折叠状态切换 grid 列宽；overlay 模式下右列固定 0。
-  const gridClass = useMemo(() => {
-    if (mode === 'overlay') return 'grid gap-5 grid-cols-[minmax(0,1fr)]';
-    if (collapsed) return 'grid gap-5 xl:grid-cols-[minmax(0,1fr)_48px]';
-    return 'grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_420px]';
-  }, [collapsed, mode]);
 
   const canvas = (
     <AgentWorkflowCanvas
@@ -69,31 +60,57 @@ export function CourseDialogueMode({ course }: { course: CourseCatalogItem }) {
   );
 
   return (
-    <div className="space-y-3">
-      <div className={gridClass}>
-        <LearningCompanionPanel
-          course={course}
-          onMockWorkflowRun={workflowRun.run}
-          onExternalWorkflowBegin={workflowRun.beginExternalRun}
-          onWorkflowTrace={workflowRun.applyTrace}
-          onShowWorkflow={showWorkflow}
-          workflowCollapsed={mode === 'overlay' ? !overlayOpen : collapsed}
-        />
+    <div
+      className={`flex h-[calc(100vh-260px)] min-h-[520px] flex-col gap-1 ${
+        mode === 'inline' ? 'relative left-1/2 -translate-x-1/2' : 'w-full'
+      }`}
+      style={mode === 'inline' ? { width: 'min(calc(100vw - 12rem), 1600px)' } : undefined}
+    >
+      {/* === inline 模式：Flex 解耦布局 === */}
+      {mode === 'inline' ? (
+        <div className="relative min-h-0 flex-1">
+          {/* 对话栏：占满页面宽度，内部 760px 内容始终按页面主轴居中。 */}
+          <LearningCompanionPanel
+            className="h-full min-h-0"
+            course={course}
+            onMockWorkflowRun={workflowRun.run}
+            onExternalWorkflowBegin={workflowRun.beginExternalRun}
+            onWorkflowTrace={workflowRun.applyTrace}
+            onShowWorkflow={showWorkflow}
+            workflowCollapsed={collapsed}
+          />
 
-        {mode === 'inline' && (
-          <div className="hidden xl:block">
+          {/* 编排图列：脱离文档流，避免影响对话栏居中和整体高度。 */}
+          <motion.div
+            layout
+            transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+            className={`absolute right-0 top-0 z-10 hidden h-[440px] overflow-hidden xl:block ${
+              collapsed ? 'w-12' : 'xl:w-[400px] 2xl:w-[420px]'
+            }`}
+          >
             {collapsed ? (
               <WorkflowPanelRail runState={workflowRun.state} onExpand={() => toggle()} />
             ) : (
               canvas
             )}
-          </div>
-        )}
-      </div>
+          </motion.div>
+        </div>
+      ) : (
+        /* === overlay 模式：对话栏全宽，编排图在抽屉中 === */
+        <LearningCompanionPanel
+          className="min-h-0 flex-1"
+          course={course}
+          onMockWorkflowRun={workflowRun.run}
+          onExternalWorkflowBegin={workflowRun.beginExternalRun}
+          onWorkflowTrace={workflowRun.applyTrace}
+          onShowWorkflow={showWorkflow}
+          workflowCollapsed={!overlayOpen}
+        />
+      )}
 
       <ResourceShowcaseTray runState={workflowRun.state} />
 
-      {/* overlay drawer：< 1024px 屏宽时使用，不挤压对话区 */}
+      {/* overlay drawer */}
       {mode === 'overlay' && overlayOpen && (
         <div
           className="fixed inset-0 z-40 flex items-stretch justify-end bg-slate-950/30 backdrop-blur-sm"

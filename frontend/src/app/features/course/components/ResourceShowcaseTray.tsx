@@ -78,7 +78,7 @@ export function ResourceShowcaseTray({ runState }: { runState: WorkflowRunState 
   return (
     <section
       aria-label="课程资源 dock"
-      className="rounded-2xl bg-white/55 px-3 py-1.5 backdrop-blur"
+      className="shrink-0 rounded-2xl bg-white/55 px-3 py-1.5 backdrop-blur"
     >
       <button
         type="button"
