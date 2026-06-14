@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from importlib import import_module
+import re
 from typing import Any
 
 import httpx
@@ -68,15 +69,17 @@ class ScrapedPage:
 
     def extract_text(self, *, css_selector: str | None = None, xpath: str | None = None) -> str:
         doc = html.fromstring(self.html_text)
+        _strip_noise_nodes(doc)
         nodes: list[Any]
         if xpath:
             selected = doc.xpath(xpath)
             nodes = selected if isinstance(selected, list) else [selected]
+            if not _nodes_have_text(nodes):
+                nodes = _default_content_nodes(doc)
         elif css_selector:
             nodes = _select_css(doc, css_selector)
         else:
-            body = doc.xpath("//main | //article | //body")
-            nodes = body[:1] if body else [doc]
+            nodes = _default_content_nodes(doc)
 
         parts: list[str] = []
         for node in nodes:
@@ -215,7 +218,12 @@ def _coerce_html(raw_page: object) -> str | None:
 
 def _clean_text(text: str) -> str:
     lines = [" ".join(line.split()) for line in text.splitlines()]
-    return "\n".join(line for line in lines if line)
+    cleaned: list[str] = []
+    for line in lines:
+        if not line or _looks_like_page_chrome(line):
+            continue
+        cleaned.append(line)
+    return "\n".join(cleaned)
 
 
 def _select_css(doc: Any, selector: str) -> list[Any]:
@@ -236,4 +244,76 @@ def _select_css(doc: Any, selector: str) -> list[Any]:
     raise ValueError(
         "css_selector only supports simple tag, #id, or .class selectors "
         "without the optional cssselect dependency"
+    )
+
+
+def _strip_noise_nodes(doc: Any) -> None:
+    noisy_xpath = (
+        "//script|//style|//noscript|//template|//svg|//canvas|//iframe|"
+        "//nav|//header|//footer|//aside|//form|"
+        "//*[contains(concat(' ', normalize-space(@class), ' '), ' nav ')]|"
+        "//*[contains(concat(' ', normalize-space(@class), ' '), ' navbar ')]|"
+        "//*[contains(concat(' ', normalize-space(@class), ' '), ' menu ')]|"
+        "//*[contains(concat(' ', normalize-space(@class), ' '), ' sidebar ')]|"
+        "//*[contains(concat(' ', normalize-space(@class), ' '), ' cookie ')]|"
+        "//*[contains(concat(' ', normalize-space(@class), ' '), ' banner ')]|"
+        "//*[contains(concat(' ', normalize-space(@id), ' '), ' banner ')]|"
+        "//*[contains(concat(' ', normalize-space(@id), ' '), ' cookie ')]"
+    )
+    for node in doc.xpath(noisy_xpath):
+        parent = node.getparent()
+        if parent is not None:
+            parent.remove(node)
+
+
+def _default_content_nodes(doc: Any) -> list[Any]:
+    candidates = doc.xpath(
+        "//main|//article|"
+        "//*[@id='main']|//*[@id='content']|//*[@id='main-content']|"
+        "//*[contains(concat(' ', normalize-space(@class), ' '), ' main ')]|"
+        "//*[contains(concat(' ', normalize-space(@class), ' '), ' content ')]|"
+        "//*[contains(concat(' ', normalize-space(@class), ' '), ' page-content ')]|"
+        "//*[contains(concat(' ', normalize-space(@class), ' '), ' post-content ')]|"
+        "//*[contains(concat(' ', normalize-space(@class), ' '), ' markdown-body ')]"
+    )
+    if not candidates:
+        body = doc.xpath("//body")
+        return body[:1] if body else [doc]
+    ranked = sorted(
+        candidates,
+        key=lambda node: len(_clean_text(node.text_content())) if hasattr(node, "text_content") else 0,
+        reverse=True,
+    )
+    return ranked[:1]
+
+
+def _nodes_have_text(nodes: list[Any]) -> bool:
+    for node in nodes:
+        if isinstance(node, str) and node.strip():
+            return True
+        if hasattr(node, "text_content") and len(_clean_text(node.text_content())) >= 80:
+            return True
+    return False
+
+
+def _looks_like_page_chrome(line: str) -> bool:
+    lowered = line.lower()
+    if len(line) <= 2:
+        return True
+    if re.search(r"[$][.(]|function\s*\(|var\s+\w+|=>|</?[a-z]+|[{};]{2,}", line):
+        return True
+    return any(
+        marker in lowered
+        for marker in (
+            "enable javascript",
+            "this website uses cookies",
+            "accept cookies",
+            "store donate join",
+            "mobile primary navigation",
+            "aria-label",
+            "search button",
+            "toggleclass",
+            "accordion",
+            "sitemap",
+        )
     )

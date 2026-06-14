@@ -10,6 +10,13 @@ from app.services.knowledge.crawling.crawler_policy import CrawlPolicy
 from app.services.knowledge.crawling.scrapling_client import ScraplingClient
 
 
+OWASP_CONTENT_XPATH = (
+    "//*[@id='main']|//main|//article|"
+    "//*[contains(concat(' ', normalize-space(@class), ' '), ' page-content ')]|"
+    "//*[contains(concat(' ', normalize-space(@class), ' '), ' content ')]"
+)
+
+
 DEFAULT_OWASP_WEBSEC_SOURCES = [
     WebSourceSpec(
         url="https://owasp.org/www-community/attacks/SQL_Injection",
@@ -20,6 +27,7 @@ DEFAULT_OWASP_WEBSEC_SOURCES = [
         rights_note="OWASP 公开社区文档；按 CC BY-SA 4.0 署名引用，保留来源链接。",
         source_type="owasp_public",
         reliability=0.9,
+        xpath=OWASP_CONTENT_XPATH,
     ),
     WebSourceSpec(
         url="https://owasp.org/www-community/attacks/xss/",
@@ -30,6 +38,7 @@ DEFAULT_OWASP_WEBSEC_SOURCES = [
         rights_note="OWASP 公开社区文档；按 CC BY-SA 4.0 署名引用，保留来源链接。",
         source_type="owasp_public",
         reliability=0.9,
+        xpath=OWASP_CONTENT_XPATH,
     ),
 ]
 

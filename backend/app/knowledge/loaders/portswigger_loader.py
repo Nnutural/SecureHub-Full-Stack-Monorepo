@@ -10,6 +10,14 @@ from app.services.knowledge.crawling.crawler_policy import CrawlPolicy
 from app.services.knowledge.crawling.scrapling_client import ScraplingClient
 
 
+PORTSWIGGER_CONTENT_XPATH = (
+    "//main|//article|//*[@id='main-content']|//*[@id='content']|"
+    "//*[contains(concat(' ', normalize-space(@class), ' '), ' main-content ')]|"
+    "//*[contains(concat(' ', normalize-space(@class), ' '), ' article-content ')]|"
+    "//*[contains(concat(' ', normalize-space(@class), ' '), ' content ')]"
+)
+
+
 DEFAULT_PORTSWIGGER_WEBSEC_SOURCES = [
     WebSourceSpec(
         url="https://portswigger.net/web-security/sql-injection",
@@ -20,6 +28,7 @@ DEFAULT_PORTSWIGGER_WEBSEC_SOURCES = [
         rights_note="PortSwigger Web Security Academy 公开学习资料；仅摘要引用并保留来源链接。",
         source_type="portswigger_public",
         reliability=0.9,
+        xpath=PORTSWIGGER_CONTENT_XPATH,
     ),
     WebSourceSpec(
         url="https://portswigger.net/web-security/cross-site-scripting",
@@ -30,6 +39,7 @@ DEFAULT_PORTSWIGGER_WEBSEC_SOURCES = [
         rights_note="PortSwigger Web Security Academy 公开学习资料；仅摘要引用并保留来源链接。",
         source_type="portswigger_public",
         reliability=0.9,
+        xpath=PORTSWIGGER_CONTENT_XPATH,
     ),
 ]
 

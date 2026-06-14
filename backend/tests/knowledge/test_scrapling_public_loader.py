@@ -9,6 +9,12 @@ from app.db.models.knowledge.document_asset import DocumentAsset
 from app.db.models.storage.storage_object import StorageObject
 from app.knowledge.loaders.generic_web_loader import WebSourceSpec, generic_web_import
 from app.knowledge.loaders.owasp_loader import owasp_import
+from app.knowledge.loaders.scrapling_public_importer import (
+    build_arg_parser,
+    build_sources,
+    load_source_file,
+    main_async,
+)
 from app.services.knowledge.crawling.crawler_policy import (
     CrawlPolicy,
     CrawlPolicyError,
@@ -26,6 +32,33 @@ OWASP_SQLI_HTML = """
       <p>SQL injection occurs when untrusted input is included in a query.</p>
       <p>Prepared statements and parameterized queries separate data from SQL syntax.</p>
     </main>
+  </body>
+</html>
+"""
+
+NOISY_OWASP_SQLI_HTML = """
+<html>
+  <head>
+    <title>OWASP SQL Injection</title>
+    <style>#banner img { max-width: 30em; }</style>
+    <script>
+      mlistr += "<li><a href='/sitemap'>SITEMAP</a></li>";
+      $('#midmenu').html(mlistr);
+      $(".accordion").click(function () {});
+    </script>
+  </head>
+  <body>
+    <nav>Store Donate Join Search</nav>
+    <header>This website uses cookies to analyze our traffic.</header>
+    <main id="main">
+      <h1>SQL Injection</h1>
+      <h2>Overview</h2>
+      <p>A SQL injection attack consists of insertion or injection of a SQL query
+      via input data from the client to the application.</p>
+      <p>Parameterized queries separate untrusted data from SQL syntax and reduce
+      the risk of SQL injection vulnerabilities.</p>
+    </main>
+    <footer>Copyright and navigation links</footer>
   </body>
 </html>
 """
@@ -90,6 +123,33 @@ async def test_owasp_loader_uses_offline_specs(sqlite_session) -> None:
     assert result.chunk_count >= 1
 
 
+@pytest.mark.anyio
+async def test_public_loader_strips_page_chrome_before_chunking(sqlite_session) -> None:
+    await generic_web_import(
+        [
+            WebSourceSpec(
+                url="https://owasp.org/www-community/attacks/SQL_Injection",
+                title="OWASP SQL Injection",
+                html_text=NOISY_OWASP_SQLI_HTML,
+                platform="owasp",
+                author="OWASP",
+                license="CC BY-SA 4.0",
+                rights_note="OWASP 公开社区文档；按 CC BY-SA 4.0 署名引用，保留来源链接。",
+            )
+        ],
+        session=sqlite_session,
+    )
+    await sqlite_session.commit()
+
+    documents = (await sqlite_session.execute(select(Document))).scalars().all()
+
+    assert "SQL injection attack consists" in documents[0].raw_text
+    assert "Parameterized queries" in documents[0].raw_text
+    assert "$('#midmenu')" not in documents[0].raw_text
+    assert "#banner img" not in documents[0].raw_text
+    assert "Store Donate Join" not in documents[0].raw_text
+
+
 def test_crawler_policy_rejects_bypass_and_proxy_options() -> None:
     policy = CrawlPolicy()
 
@@ -108,3 +168,50 @@ def test_crawler_policy_rejects_bypass_and_proxy_options() -> None:
                 options={"proxy": "socks5://127.0.0.1:1080"},
             )
         )
+
+
+def test_scrapling_public_importer_resolves_websec_preset() -> None:
+    parser = build_arg_parser()
+    args = parser.parse_args(["--preset", "websec-core", "--limit", "2"])
+    sources = build_sources(args)
+
+    assert len(sources) == 2
+    assert sources[0].platform == "owasp"
+    assert sources[0].xpath
+    assert sources[1].url == "https://owasp.org/www-community/attacks/xss/"
+
+
+def test_scrapling_public_importer_loads_jsonl_source_file(tmp_path) -> None:
+    source_file = tmp_path / "sources.jsonl"
+    source_file.write_text(
+        "\n".join(
+            [
+                (
+                    '{"url":"https://example.test/websec",'
+                    '"title":"Example WebSec",'
+                    '"platform":"example",'
+                    '"xpath":"//main",'
+                    '"metadata":{"topic":"xss"}}'
+                )
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    sources = load_source_file(source_file)
+
+    assert len(sources) == 1
+    assert sources[0].title == "Example WebSec"
+    assert sources[0].platform == "example"
+    assert sources[0].xpath == "//main"
+    assert sources[0].metadata == {"topic": "xss"}
+
+
+@pytest.mark.anyio
+async def test_scrapling_public_importer_dry_run_skips_database(capsys) -> None:
+    summary = await main_async(["--preset", "websec-core", "--limit", "1", "--dry-run"])
+    output = capsys.readouterr().out
+
+    assert summary.requested_count == 1
+    assert summary.imported == []
+    assert "dry-run platform=owasp" in output
