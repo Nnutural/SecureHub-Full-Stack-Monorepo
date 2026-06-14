@@ -34,7 +34,7 @@ export const CompanionMessageList = forwardRef<HTMLDivElement, Props>(function C
           {emptyHint}
         </div>
       ) : (
-        <div className="mx-auto flex max-w-[680px] flex-col gap-5">
+        <div className="mx-auto flex max-w-[760px] flex-col gap-5">
           {messages.map((message) => (
             <MessageRow key={message.id} message={message} />
           ))}
@@ -50,7 +50,7 @@ function MessageRow({ message }: { message: CompanionMessage }) {
   if (isUser) {
     return (
       <div className="flex items-start justify-end gap-3">
-        <div className="max-w-[80%] rounded-2xl rounded-tr-md bg-brand-blue-600 px-3.5 py-2.5 text-sm leading-relaxed text-white shadow-[0_8px_22px_-14px_rgba(0,51,153,0.55)]">
+        <div className="max-w-[640px] rounded-2xl rounded-tr-md bg-brand-blue-600 px-3.5 py-2.5 text-sm leading-relaxed text-white shadow-[0_8px_22px_-14px_rgba(0,51,153,0.55)]">
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200/80 text-slate-600">
@@ -66,7 +66,7 @@ function MessageRow({ message }: { message: CompanionMessage }) {
         <Bot className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="max-w-[80%] text-sm leading-relaxed text-slate-800">
+        <div className="max-w-[720px] text-sm leading-relaxed text-slate-800">
           <div className="prose prose-sm max-w-none text-slate-800">
             <ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml>
               {message.content || '正在为你定制学习路径...'}
@@ -89,7 +89,7 @@ function MessageRow({ message }: { message: CompanionMessage }) {
 
 function EvidenceInline({ chunks }: { chunks: EvidenceChunkDTO[] }) {
   return (
-    <div className="mt-3 max-w-[80%] rounded-xl bg-brand-blue-50/60 px-3 py-2">
+    <div className="mt-3 max-w-[720px] rounded-xl bg-brand-blue-50/60 px-3 py-2">
       <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-brand-blue-700">
         <Paperclip className="h-3.5 w-3.5" />
         证据 {chunks.length} 条

@@ -17,6 +17,10 @@ export type WorkflowCanvasProps = {
   onPause: () => void;
   onReset: () => void;
   mockControlsEnabled?: boolean;
+  /** Chat-first 紧凑模式：节点 / toolbar / 字号 / 背景全部收敛。 */
+  compact?: boolean;
+  /** 提供后顶部 toolbar 会显示「隐藏编排图」按钮。 */
+  onCollapse?: () => void;
 };
 
 export function WorkflowCanvas(props: WorkflowCanvasProps) {

@@ -3,14 +3,13 @@ import type { AgentId, WorkflowDefinition, WorkflowNode } from '../types';
 /**
  * 9 智能体在圆形 orb 画布上的位置。
  *
- * 设计：career_planner 在左侧作为入口、task_orchestrator 居中作路径编排、4 个生产
- * 智能体在右侧并行环上、outcome_evaluator 在最右作质量闸门；policy_interpreter 与
- * job_analyst 作为「本轮跳过」浮在底部，仍能被评委一眼数到 9 个。
+ * 标准布局（compact = false）：career_planner 在左、task_orchestrator 居中、
+ * 4 个生产者在右侧并行环、outcome_evaluator 在最右、policy/job 浮在底部。
  *
- * 坐标基于 ReactFlow，按 800x460 画布手动布局；圆形 orb 直径 72px，
- * 因此 x/y 给的是节点中心 - 36px 的左上角。
+ * Chat-first compact 布局：把上述坐标整体压缩 ~30%，让画布在 380–420px 宽
+ * 的右栏内仍能放下 9 个 56px orb，同时保留方向感。
  */
-const orbPositions: Record<AgentId, { x: number; y: number }> = {
+const standardPositions: Record<AgentId, { x: number; y: number }> = {
   career_planner: { x: 36, y: 184 },
   task_orchestrator: { x: 224, y: 184 },
   doc_archivist: { x: 432, y: 36 },
@@ -18,17 +17,32 @@ const orbPositions: Record<AgentId, { x: number; y: number }> = {
   topic_explorer: { x: 504, y: 240 },
   hot_analyst: { x: 432, y: 332 },
   outcome_evaluator: { x: 660, y: 184 },
-  // 「跳过」节点压在底部，作为「9 个智能体都在」的视觉证据
   policy_interpreter: { x: 144, y: 360 },
   job_analyst: { x: 312, y: 376 },
 };
 
-/** 把 `WorkflowDefinition` 中的 position 改为本布局，得到画布渲染用的节点列表。 */
-export function applyOrbLayout(workflow: WorkflowDefinition): WorkflowNode[] {
+const compactPositions: Record<AgentId, { x: number; y: number }> = {
+  career_planner: { x: 14, y: 132 },
+  task_orchestrator: { x: 132, y: 132 },
+  doc_archivist: { x: 248, y: 30 },
+  competition_advisor: { x: 286, y: 108 },
+  topic_explorer: { x: 286, y: 184 },
+  hot_analyst: { x: 248, y: 244 },
+  outcome_evaluator: { x: 380, y: 136 },
+  policy_interpreter: { x: 80, y: 280 },
+  job_analyst: { x: 196, y: 296 },
+};
+
+export function applyOrbLayout(
+  workflow: WorkflowDefinition,
+  options?: { compact?: boolean },
+): WorkflowNode[] {
+  const positions = options?.compact ? compactPositions : standardPositions;
   return workflow.nodes.map((node) => ({
     ...node,
-    position: orbPositions[node.agentId] ?? node.position,
+    position: positions[node.agentId] ?? node.position,
   }));
 }
 
 export const ORB_DIAMETER = 72;
+export const ORB_DIAMETER_COMPACT = 56;
