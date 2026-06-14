@@ -50,48 +50,68 @@ function ResourcePreview({ resource }: { resource: ResourceItem }) {
   return <ReadingsResourceView resource={resource} />;
 }
 
+/**
+ * 资源 dock：从「大卡片条」改为轻量胶囊条 —— 不再带外层 border + shadow，
+ * 而是浮在页面底层上，单个徽章是圆角胶囊 + 数量角标。未产出时降透明度并附
+ * 中文 tooltip「等待工作流产出」。
+ */
 export function ResourceShowcaseTray({ runState }: { runState: WorkflowRunState }) {
   const { resources } = useCourseState();
   const [activeType, setActiveType] = useState<ResourceType | undefined>();
-  const resourceByType = useMemo(() => (
-    Object.fromEntries(resources.map((resource) => [resource.type, resource])) as Partial<Record<ResourceType, ResourceItem>>
-  ), [resources]);
+  const resourceByType = useMemo(
+    () =>
+      Object.fromEntries(
+        resources.map((resource) => [resource.type, resource]),
+      ) as Partial<Record<ResourceType, ResourceItem>>,
+    [resources],
+  );
   const activeResource = activeType ? resourceByType[activeType] ?? fallbackResource(activeType) : undefined;
   const activeCount = activeType ? runState.producedResources[activeType] ?? 0 : 0;
+  const totalProduced = resourceBadges.reduce(
+    (sum, item) => sum + (runState.producedResources[item.type] ?? 0),
+    0,
+  );
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-        {resourceBadges.map((item) => {
-          const count = runState.producedResources[item.type] ?? 0;
-          const active = count > 0;
-          return (
-            <button
-              key={item.type}
-              type="button"
-              onClick={() => setActiveType(item.type)}
-              title={active ? `已产出 ${count} 个${item.label}` : '等待工作流产出'}
-              className={`relative inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm transition-colors ${
-                active
-                  ? 'border-brand-blue-200 bg-brand-blue-50 text-brand-blue-700 hover:bg-brand-blue-100'
-                  : 'border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100'
-              }`}
-            >
-              <span aria-hidden>{item.icon}</span>
-              <span>{item.label}</span>
-              <span
-                className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                  active ? 'bg-brand-blue-600 text-white' : 'bg-slate-200 text-slate-500'
+    <section
+      aria-label="课程资源 dock"
+      className="rounded-2xl border border-slate-200/60 bg-white/80 px-3 py-2 backdrop-blur"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1 px-1 text-[11px] font-medium text-slate-500">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-blue-500" />
+          资源 dock · 已产出 {totalProduced}
+        </span>
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-1.5">
+          {resourceBadges.map((item) => {
+            const count = runState.producedResources[item.type] ?? 0;
+            const active = count > 0;
+            return (
+              <button
+                key={item.type}
+                type="button"
+                onClick={() => setActiveType(item.type)}
+                title={active ? `已产出 ${count} 个${item.label}` : '等待工作流产出'}
+                aria-label={`${item.label}${active ? `，已产出 ${count} 个` : '，等待工作流产出'}`}
+                className={`relative inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all ${
+                  active
+                    ? 'border-brand-blue-200 bg-brand-blue-50 text-brand-blue-700 shadow-[0_4px_12px_-8px_rgba(0,51,153,0.4)] hover:bg-brand-blue-100'
+                    : 'border-slate-200/80 bg-white/70 text-slate-400 opacity-80 hover:opacity-100'
                 }`}
               >
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
-        工作流产出后徽章亮起；点击可展开对应资源富渲染预览。
+                <span aria-hidden className={active ? '' : 'grayscale'}>
+                  {item.icon}
+                </span>
+                <span>{item.label}</span>
+                {active && (
+                  <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-brand-blue-600 px-1 text-[10px] font-semibold text-white">
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <Sheet open={Boolean(activeType)} onOpenChange={(open) => !open && setActiveType(undefined)}>
