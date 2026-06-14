@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp, Package } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Sheet,
   SheetContent,
@@ -51,13 +53,14 @@ function ResourcePreview({ resource }: { resource: ResourceItem }) {
 }
 
 /**
- * 资源 dock：从「大卡片条」改为轻量胶囊条 —— 不再带外层 border + shadow，
- * 而是浮在页面底层上，单个徽章是圆角胶囊 + 数量角标。未产出时降透明度并附
- * 中文 tooltip「等待工作流产出」。
+ * Chat-first 重构：dock 默认折叠为「资源 · 已产出 N」的单行入口，
+ * 不与 composer 同层竞争视觉。点击后才展开 7 类资源胶囊；产出后才高亮。
  */
 export function ResourceShowcaseTray({ runState }: { runState: WorkflowRunState }) {
   const { resources } = useCourseState();
   const [activeType, setActiveType] = useState<ResourceType | undefined>();
+  const [expanded, setExpanded] = useState(false);
+
   const resourceByType = useMemo(
     () =>
       Object.fromEntries(
@@ -75,44 +78,74 @@ export function ResourceShowcaseTray({ runState }: { runState: WorkflowRunState 
   return (
     <section
       aria-label="课程资源 dock"
-      className="rounded-2xl border border-slate-200/60 bg-white/80 px-3 py-2 backdrop-blur"
+      className="shrink-0 rounded-2xl bg-white/55 px-3 py-1.5 backdrop-blur"
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="flex items-center gap-1 px-1 text-[11px] font-medium text-slate-500">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-blue-500" />
-          资源 dock · 已产出 {totalProduced}
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+        aria-controls="resource-dock-list"
+        className="flex w-full items-center justify-between gap-3 rounded-xl px-1 py-1 text-left text-xs text-slate-500 transition-colors hover:text-slate-700"
+      >
+        <span className="flex items-center gap-1.5">
+          <Package className="h-3.5 w-3.5 text-slate-400" />
+          <span className="font-medium text-slate-600">资源</span>
+          <span className="text-slate-400">·</span>
+          <span>已产出 {totalProduced}</span>
+          {totalProduced > 0 && (
+            <span className="ml-1 inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-brand-blue-500" />
+          )}
         </span>
-        <div className="flex flex-1 flex-wrap items-center justify-end gap-1.5">
-          {resourceBadges.map((item) => {
-            const count = runState.producedResources[item.type] ?? 0;
-            const active = count > 0;
-            return (
-              <button
-                key={item.type}
-                type="button"
-                onClick={() => setActiveType(item.type)}
-                title={active ? `已产出 ${count} 个${item.label}` : '等待工作流产出'}
-                aria-label={`${item.label}${active ? `，已产出 ${count} 个` : '，等待工作流产出'}`}
-                className={`relative inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all ${
-                  active
-                    ? 'border-brand-blue-200 bg-brand-blue-50 text-brand-blue-700 shadow-[0_4px_12px_-8px_rgba(0,51,153,0.4)] hover:bg-brand-blue-100'
-                    : 'border-slate-200/80 bg-white/70 text-slate-400 opacity-80 hover:opacity-100'
-                }`}
-              >
-                <span aria-hidden className={active ? '' : 'grayscale'}>
-                  {item.icon}
-                </span>
-                <span>{item.label}</span>
-                {active && (
-                  <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-brand-blue-600 px-1 text-[10px] font-semibold text-white">
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+        <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+          {expanded ? '收起' : '展开'}
+          {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+        </span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="resource-dock-list"
+            id="resource-dock-list"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="overflow-hidden"
+          >
+            <div className="flex flex-wrap items-center gap-1.5 pt-2">
+              {resourceBadges.map((item) => {
+                const count = runState.producedResources[item.type] ?? 0;
+                const active = count > 0;
+                return (
+                  <button
+                    key={item.type}
+                    type="button"
+                    onClick={() => setActiveType(item.type)}
+                    title={active ? `已产出 ${count} 个${item.label}` : '等待工作流产出'}
+                    aria-label={`${item.label}${active ? `，已产出 ${count} 个` : '，等待工作流产出'}`}
+                    className={`relative inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium transition-all ${
+                      active
+                        ? 'border-brand-blue-200 bg-brand-blue-50 text-brand-blue-700 hover:bg-brand-blue-100'
+                        : 'border-slate-200/70 bg-white/70 text-slate-400 opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <span aria-hidden className={active ? '' : 'grayscale'}>
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                    {active && (
+                      <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-brand-blue-600 px-1 text-[10px] font-semibold text-white">
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Sheet open={Boolean(activeType)} onOpenChange={(open) => !open && setActiveType(undefined)}>
         <SheetContent side="bottom" className="max-h-[82vh] overflow-y-auto bg-white">

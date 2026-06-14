@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, Sparkles } from 'lucide-react';
+import { Bot, PanelRightOpen } from 'lucide-react';
 import { useEvidence } from '@/app/components/EvidenceDrawer';
+import { cn } from '@/app/components/ui/utils';
 import { useAgentTraceDispatch } from '@/app/features/agents/store';
 import { isMockMode } from '@/lib/mock';
 import { mockEvidenceChunks } from '@/lib/mock/evidence.mock';
@@ -29,11 +30,18 @@ export function LearningCompanionPanel({
   onMockWorkflowRun,
   onExternalWorkflowBegin,
   onWorkflowTrace,
+  onShowWorkflow,
+  workflowCollapsed,
+  className,
 }: {
   course: CourseCatalogItem;
   onMockWorkflowRun: () => void;
   onExternalWorkflowBegin: () => void;
   onWorkflowTrace: (run: AgentRunDTO) => void;
+  /** Chat-first：右侧编排图折叠时，header 显示「显示编排图」入口。 */
+  onShowWorkflow?: () => void;
+  workflowCollapsed?: boolean;
+  className?: string;
 }) {
   const preset = useMemo(() => getCompanionPreset(course), [course]);
   const [draft, setDraft] = useState('');
@@ -83,7 +91,10 @@ export function LearningCompanionPanel({
     [],
   );
 
-  const updateAssistant = (assistantId: string, update: (message: CompanionMessage) => CompanionMessage) => {
+  const updateAssistant = (
+    assistantId: string,
+    update: (message: CompanionMessage) => CompanionMessage,
+  ) => {
     setMessages((current) =>
       current.map((message) => (message.id === assistantId ? update(message) : message)),
     );
@@ -185,36 +196,51 @@ export function LearningCompanionPanel({
     );
   };
 
+  // 关键：只要用户已经发过任何一条消息（即对话进入正式阶段），就隐藏建议问题。
+  const hasUserSent = useMemo(
+    () => messages.some((message) => message.role === 'user'),
+    [messages],
+  );
+  const showSuggestions = !hasUserSent && preset.suggestedPrompts.length > 0;
+
   return (
     <section
-      className="flex min-h-[640px] min-w-0 flex-col gap-3"
+      className={cn('flex min-h-[520px] min-w-0 flex-col gap-3', className)}
       aria-label={`${course.title} 学习助手对话区`}
     >
-      <header className="flex items-start gap-3 px-1 sm:px-2">
-        <div
-          aria-hidden
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-blue-500/85 to-brand-blue-700 text-white shadow-[0_8px_22px_-14px_rgba(0,51,153,0.55)]"
-        >
-          <Bot className="h-4 w-4" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="truncate text-sm font-semibold text-slate-950">学习助手</h2>
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-blue-50 px-2 py-0.5 text-[10px] font-medium text-brand-blue-700">
-              <Sparkles className="h-3 w-3" />
-              9 智能体协作
-            </span>
+      {/* 低权重 header：assistant 标识 + 当前课程 + 可选「显示编排图」入口 */}
+      <header className="flex items-center justify-between gap-3 px-1 sm:px-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <div
+            aria-hidden
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-blue-500/85 to-brand-blue-700 text-white"
+          >
+            <Bot className="h-3.5 w-3.5" />
           </div>
-          <p className="mt-0.5 truncate text-xs text-slate-500">
-            正在学习：{course.title} · {course.currentKnowledgePoint}
-          </p>
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-medium text-slate-900">学习助手</p>
+            <p className="truncate text-[11px] text-slate-500">
+              {course.title} · {course.currentKnowledgePoint}
+            </p>
+          </div>
         </div>
+        {workflowCollapsed && onShowWorkflow && (
+          <button
+            type="button"
+            onClick={onShowWorkflow}
+            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/85 px-2 py-1 text-[11px] text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-blue-700"
+            title="显示 9 智能体编排图"
+          >
+            <PanelRightOpen className="h-3 w-3" />
+            显示编排图
+          </button>
+        )}
       </header>
 
       <CompanionMessageList ref={scrollRef} messages={messages} />
 
-      {messages.length <= 2 && preset.suggestedPrompts.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-1 sm:px-2">
+      {showSuggestions && (
+        <div className="mx-auto flex w-full max-w-[760px] flex-wrap gap-1.5 px-1 sm:px-2">
           {preset.suggestedPrompts.map((prompt) => (
             <button
               key={prompt}
@@ -229,7 +255,7 @@ export function LearningCompanionPanel({
         </div>
       )}
 
-      <div className="pb-1 pt-1">
+      <div className="mx-auto w-full max-w-[760px] pb-1 pt-1">
         <CompanionComposer
           value={draft}
           placeholder={preset.composerPlaceholder}

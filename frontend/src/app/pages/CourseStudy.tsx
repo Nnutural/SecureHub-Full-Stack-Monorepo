@@ -1,17 +1,27 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ClipboardList, MessageCircle } from 'lucide-react';
-import { AgentBadge } from '@/app/components/AgentBadge';
+import {
+  ClipboardList,
+  MessageCircle,
+  MoreHorizontal,
+  Play,
+  Sparkles,
+} from 'lucide-react';
 import { ErrorBoundary } from '@/app/components/ErrorBoundary';
 import { PageShell, type TabDef } from '@/app/components/PageShell';
 import { StreamingProgress } from '@/app/components/StreamingProgress';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/app/components/ui/popover';
 import { AgentTracePanel } from '@/app/features/agents/components/AgentTracePanel';
 import { AgentTraceProvider } from '@/app/features/agents/store';
 import { CourseSwitcher } from '@/app/features/course/catalog/CourseSwitcher';
 import {
-  courseDifficultyTone,
   courseCoverAccent,
+  courseDifficultyTone,
 } from '@/app/features/course/catalog/courseCatalog';
 import { useSelectedCourse } from '@/app/features/course/catalog/useSelectedCourse';
 import { AssessmentPanel } from '@/app/features/course/components/AssessmentPanel';
@@ -89,14 +99,24 @@ function readStoredCourseView(): CourseView {
   return isCourseView(stored) ? stored : 'chat';
 }
 
-function CourseViewSwitch({ value, onChange }: { value: CourseView; onChange: (view: CourseView) => void }) {
+function CourseViewSwitch({
+  value,
+  onChange,
+}: {
+  value: CourseView;
+  onChange: (view: CourseView) => void;
+}) {
   const options: Array<{ value: CourseView; label: string; icon: typeof MessageCircle }> = [
     { value: 'chat', label: '对话模式', icon: MessageCircle },
     { value: 'structured', label: '结构化模式', icon: ClipboardList },
   ];
 
   return (
-    <div className="relative inline-flex rounded-xl border border-slate-200 bg-slate-50/80 p-1 backdrop-blur" role="tablist" aria-label="课程学习模式">
+    <div
+      className="relative inline-flex rounded-xl border border-slate-200 bg-slate-50/80 p-1 backdrop-blur"
+      role="tablist"
+      aria-label="课程学习模式"
+    >
       {options.map((option) => {
         const selected = value === option.value;
         const Icon = option.icon;
@@ -107,7 +127,7 @@ function CourseViewSwitch({ value, onChange }: { value: CourseView; onChange: (v
             role="tab"
             aria-selected={selected}
             onClick={() => onChange(option.value)}
-            className={`relative z-10 inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors ${
+            className={`relative z-10 inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors ${
               selected ? 'text-brand-blue-700' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -118,7 +138,7 @@ function CourseViewSwitch({ value, onChange }: { value: CourseView; onChange: (v
                 transition={{ duration: 0.28, ease: 'easeOut' }}
               />
             )}
-            <Icon className="h-4 w-4" />
+            <Icon className="h-3.5 w-3.5" />
             {option.label}
           </button>
         );
@@ -222,74 +242,115 @@ function CourseStudyInner() {
     setActiveTab(tabOrder[nextIndex]);
   };
 
-  const actions = (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      {import.meta.env.DEV && (
-        <button
-          type="button"
-          onClick={toggleMock}
-          title="演示用：使用本地 Mock 数据"
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-        >
-          {mockEnabled ? '使用真后端' : '使用演示数据'}
-        </button>
-      )}
-      {import.meta.env.DEV && mockEnabled && (
-        <button
-          type="button"
-          onClick={startDemo}
-          disabled={demoRunning}
-          className="rounded-lg bg-brand-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {demoRunning ? '演示进行中' : '演示开始'}
-        </button>
-      )}
-      <AgentBadge agentId="career_planner" />
-      <AgentBadge agentId="doc_archivist" />
-      <AgentBadge agentId="outcome_evaluator" />
-    </div>
-  );
-
   return (
     <div
       tabIndex={0}
       onKeyDown={activeView === 'structured' ? handleKeyDown : undefined}
-      className="space-y-5 outline-none"
+      className="space-y-4 outline-none"
       aria-label="课程学习页面"
     >
-      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 xl:flex-row xl:items-center xl:justify-between">
-        <div className="min-w-0">
-          <nav className="mb-2 text-xs text-slate-400">
-            课程学习 / {course.title} / {activeView === 'chat' ? '对话模式' : '结构化模式'}
-          </nav>
-          <div className="flex flex-wrap items-end gap-3">
-            <h1 className="text-2xl font-semibold leading-tight text-slate-950">{course.title}</h1>
-            <span className={`rounded-full bg-brand-blue-50 px-3 py-1 text-xs font-medium text-brand-blue-700`}>
-              当前知识点：{course.currentKnowledgePoint}
-            </span>
+      <header className="space-y-3 border-b border-slate-200 pb-4">
+        {/* 第一行：标题 + 课程切换 + 更多设置 */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="truncate text-xl font-semibold leading-tight text-slate-950">
+              {course.title}
+            </h1>
             <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${courseDifficultyTone[course.difficulty]}`}
+              className={`hidden rounded-full px-1.5 py-0.5 text-[10px] font-medium sm:inline-flex ${courseDifficultyTone[course.difficulty]}`}
             >
               {course.difficulty}
             </span>
           </div>
-          <p className={`mt-2 max-w-3xl text-sm leading-relaxed text-slate-500`}>
-            {course.subtitle ?? '学生只与学习助手对话，右侧实时显示 9 智能体 LangGraph 工作流编排。'}
-            <span className={`ml-2 text-xs ${courseCoverAccent[course.coverTone]}`}>
-              · 进度 {course.progressPercent}%
+          <div className="flex items-center gap-2">
+            <CourseSwitcher course={course} onSelect={(id) => selectCourse(id)} />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="更多设置"
+                  title="更多设置"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 space-y-3 p-3 text-xs">
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    学习模式
+                  </p>
+                  <CourseViewSwitch value={activeView} onChange={(view) => setCourseView(view)} />
+                </div>
+
+                {import.meta.env.DEV && (
+                  <>
+                    <div className="space-y-1.5 border-t border-slate-100 pt-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        演示开关
+                      </p>
+                      <button
+                        type="button"
+                        onClick={toggleMock}
+                        className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-white px-2 py-1.5 text-slate-700 hover:bg-slate-50"
+                      >
+                        <span>{mockEnabled ? '使用真后端' : '使用演示数据'}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {mockEnabled ? 'mock on' : 'mock off'}
+                        </span>
+                      </button>
+                      {mockEnabled && (
+                        <button
+                          type="button"
+                          onClick={startDemo}
+                          disabled={demoRunning}
+                          className="flex w-full items-center justify-between rounded-md bg-brand-blue-600 px-2 py-1.5 text-white hover:bg-brand-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Play className="h-3 w-3" />
+                            {demoRunning ? '演示进行中' : '演示开始'}
+                          </span>
+                          <span className="text-[10px] opacity-80">5 阶段</span>
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] leading-relaxed text-slate-400">
+                      Planner / Docs / Quality 等智能体状态已收敛到右侧编排图，节点点击展开详情。
+                    </p>
+                  </>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+
+        {/* 第二行：当前知识点 chip + 模式 chip + 细进度信息 */}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-blue-50 px-2.5 py-1 font-medium text-brand-blue-700">
+              <Sparkles className="h-3 w-3" />
+              当前知识点：{course.currentKnowledgePoint}
             </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-600">
+              {activeView === 'chat' ? '对话模式' : '结构化模式'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+            <span>进度 {course.progressPercent}%</span>
+            <span aria-hidden className={`inline-block h-1 w-24 overflow-hidden rounded-full bg-slate-100`}>
+              <span
+                className={`block h-full rounded-full bg-current opacity-70 ${courseCoverAccent[course.coverTone]}`}
+                style={{ width: `${course.progressPercent}%` }}
+              />
+            </span>
+          </div>
+        </div>
+
+        {fellBackToDefault && (
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">
+            URL 中的 courseId 无效，已回退到默认课程「{course.title}」。
           </p>
-          {fellBackToDefault && (
-            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-              URL 中的 courseId 无效，已回退到默认课程「{course.title}」。
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center xl:justify-end">
-          <CourseSwitcher course={course} onSelect={(id) => selectCourse(id)} />
-          <CourseViewSwitch value={activeView} onChange={setCourseView} />
-          {actions}
-        </div>
+        )}
       </header>
 
       <AnimatePresence mode="wait">
